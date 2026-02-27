@@ -1,19 +1,17 @@
-# Load libraries
 library(sf)
 library(tigris)
 library(tidyverse)
+library(ggrepel)
 
 # 1. Download Elementary and Unified school districts for California
-# (Merced has a mix of both types)
 ca_unified <- school_districts(state = "CA", type = "unified", cb = TRUE)
 ca_elem <- school_districts(state = "CA", type = "elementary", cb = TRUE)
 
 # 2. Filter for Merced County districts
-# We filter by Name based on the labels in your image
 merced_districts <- 
   bind_rows(ca_unified, ca_elem) %>%
   filter(str_detect(NAME, 
-   "Merced|Atwater|Livingston|Los Banos|Gustine|Hilmar|Delhi|Winton|McSwain|Planada|Le Grand|Plainsburg|Snelling|Ballico|El Nido|Weaver|Dos Palos")
+    "Merced|Atwater|Livingston|Los Banos|Gustine|Hilmar|Delhi|Winton|McSwain|Planada|Le Grand|Plainsburg|Snelling|Ballico|El Nido|Weaver|Dos Palos")
   )
 
 # 3. Assign Districts to the 5 Trustee Areas
@@ -46,23 +44,50 @@ merced_districts <- merced_districts %>%
   )
 
 # 4. Create the dissolved Trustee Areas
-trustee_areas <- 
-  merced_districts %>%
+trustee_areas <- merced_districts %>%
   group_by(Trustee_Area) %>%
-  summarize(geometry = st_union(geometry))
+  summarize(geometry = st_union(geometry)) %>%
+  filter(Trustee_Area != "Other")
 
-trustee_areas$Trustee_Area <- 
-  factor(trustee_areas$Trustee_Area, 
-         levels = c("Area 1", "Area 2", "Area 3", "Area 4", "Area 5"))
-
-# 5. Plot the result
+# 5. Plot with ggrepel
 p <- ggplot() +
+  # 1. Fill the Trustee Areas
   geom_sf(data = trustee_areas, aes(fill = Trustee_Area), alpha = 0.6) +
-  geom_sf(data = merced_districts, color = "white", size = 0.2, fill = NA) +
+  
+  # 2. Draw District boundaries
+  geom_sf(data = merced_districts, color = "black", alpha = 0.5, linewidth = 0.1, fill = NA) +
+  
+  # 3. Label District Names (Cleaned for clarity)
+  geom_text_repel(
+    data = merced_districts,
+    aes(label = str_remove_all(NAME, " (Elementary|Unified|Union|Joint|School District)"), 
+        geometry = geometry),
+    stat = "sf_coordinates",
+    size = 3,
+    fontface = "bold",
+    color = "black",
+    box.padding = 0.3,
+    max.overlaps = 15
+  ) +
+  
+  # 4. Label Trustee Areas (Bold)
+  # geom_text_repel(
+  #   data = trustee_areas,
+  #   aes(label = Trustee_Area, geometry = geometry),
+  #   stat = "sf_coordinates",
+  #   size = 5,
+  #   fontface = "bold",
+  #   box.padding = 0.6
+  # ) +
+  
   scale_fill_manual(values = c("Area 1" = "magenta", "Area 2" = "green", 
                                "Area 3" = "orange", "Area 4" = "yellow", 
                                "Area 5" = "skyblue")) +
-  theme_minimal() + labs(title = "Merced County Trustee Boundary Plan B
-                         (Approximate)")
+  theme_minimal() + 
+  labs(
+    title = "Map of Merced County Districts and Trustee Areas 1-5",
+    x = "Longitude",
+    y = "Latitude"
+  )
 
 print(p)
