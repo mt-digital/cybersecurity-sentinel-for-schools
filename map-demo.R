@@ -3,9 +3,14 @@ library(tigris)
 library(tidyverse)
 library(ggrepel)
 
-# 1. Download Elementary and Unified school districts for California
+# 1a. Download Elementary and Unified school districts for California
 ca_unified <- school_districts(state = "CA", type = "unified", cb = TRUE)
 ca_elem <- school_districts(state = "CA", type = "elementary", cb = TRUE)
+# 1b. Download towns > 10k pop
+ca_places <- places(state = "CA", cb = TRUE) 
+merced_towns <- ca_places %>%
+  filter(NAME %in% c("Merced", "Atwater", "Livingston", "Los Banos", "Gustine", "Turlock")) %>%
+  st_transform(st_crs(merced_districts))
 
 # 2. Filter for Merced County districts
 merced_districts <- 
@@ -43,7 +48,7 @@ merced_districts <- merced_districts %>%
     )
   )
 
-# 4. Create the dissolved Trustee Areas
+# 4. Create the Trustee Areas
 trustee_areas <- merced_districts %>%
   group_by(Trustee_Area) %>%
   summarize(geometry = st_union(geometry)) %>%
@@ -56,6 +61,19 @@ p <- ggplot() +
   
   # 2. Draw District boundaries
   geom_sf(data = merced_districts, color = "black", alpha = 0.5, linewidth = 0.1, fill = NA) +
+
+  # Town Points & Labels
+  geom_sf(data = st_centroid(merced_towns), size = 1.5, color = "red") +
+  geom_text_repel(
+    data = merced_towns,
+    aes(label = NAME, geometry = geometry),
+    stat = "sf_coordinates", 
+    size = 3.5, 
+    color = "red", 
+    fontface = "italic", 
+    bg.color = "white",
+    bg.r = 0.1
+  ) +
   
   # 3. Label District Names (Cleaned for clarity)
   geom_text_repel(
@@ -69,16 +87,6 @@ p <- ggplot() +
     box.padding = 0.3,
     max.overlaps = 15
   ) +
-  
-  # 4. Label Trustee Areas (Bold)
-  # geom_text_repel(
-  #   data = trustee_areas,
-  #   aes(label = Trustee_Area, geometry = geometry),
-  #   stat = "sf_coordinates",
-  #   size = 5,
-  #   fontface = "bold",
-  #   box.padding = 0.6
-  # ) +
   
   scale_fill_manual(values = c("Area 1" = "magenta", "Area 2" = "green", 
                                "Area 3" = "orange", "Area 4" = "yellow", 
