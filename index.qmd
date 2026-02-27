@@ -1,0 +1,22 @@
+---
+title: "SubtleSentinel"
+---
+
+```{ojs}
+// 1. Load, making sure timestamps are represented by JS Date
+data_cleaned = FileAttachment("data.json").json().then(d => d.map(row => ({
+  ...row,
+  timestamp: new Date(row.timestamp)
+})))
+
+// Data filtering example: filter for high threat levels
+high_threats = data_cleaned.filter(d => d.threat_level > 4)
+
+// 3. Render a simple test chart
+Plot.plot({
+  marks: [
+    Plot.lineY(data_cleaned, {x: "timestamp", y: "threat_level", stroke: "source"}),
+    Plot.dot(data_cleaned, {x: "timestamp", y: "threat_level", stroke: "source"})
+  ]
+})
+```
